@@ -1,240 +1,348 @@
-# Predictive Maintenance AI
+# Machine Failure Prediction Using Machine Learning
 
-A Streamlit machine-learning application that estimates whether a machine is
-likely to be in the **machine-failure class** from its operating conditions and
-sensor readings. The project includes data download, preprocessing, model
-training and comparison, evaluation, and an interactive prediction dashboard.
+A Machine Learning-based Predictive Maintenance System that predicts whether a machine is likely to fail based on its sensor readings. The project uses historical machine data, compares two machine learning models, and provides predictions through an interactive Streamlit web application.
 
-> **Educational prototype:** This project uses the AI4I 2020 synthetic
-> predictive-maintenance dataset. It is not connected to real equipment or live
-> sensors, and its predictions and risk-score bands are not validated for
-> operational maintenance decisions.
+## 1. Project Overview
 
-## Contents
+Machine failures can cause unexpected downtime, production delays, and increased maintenance costs. Traditional maintenance often depends on fixed schedules or repairs after a machine breaks down.
 
-- [What the project does](#what-the-project-does)
-- [Dataset](#dataset)
-- [Training and model selection](#training-and-model-selection)
-- [Saved test-set results](#saved-test-set-results)
-- [Run the project](#run-the-project)
-- [Using the application](#using-the-application)
-- [Project structure](#project-structure)
-- [Limitations and next steps](#limitations-and-next-steps)
+This project demonstrates how Machine Learning can help identify potential machine failures by analyzing sensor readings such as temperature, rotational speed, torque, and tool wear.
 
-## What the project does
+The application allows users to enter machine sensor values and receive a prediction:
 
-The project learns a binary classification task:
+- **No Failure:** The model predicts that the machine will not fail.
+- **Failure:** The model predicts that the machine may experience a failure.
 
-- **0 — No machine failure**
-- **1 — Machine failure**
+This is an educational prototype based on a historical dataset. It does not currently connect to physical machines or live sensors.
 
-The training script compares two classifiers and saves the one with the higher
-test-set F1-score. The Streamlit app loads that saved pipeline to classify
-sensor readings entered by a user, show the model's estimated failure score,
-and display model and dataset information.
+## 2. Project Objectives
 
-The model estimates the class for the supplied readings. It does **not** predict
-when a failure will happen or estimate remaining useful life.
+- Build a Machine Learning model for machine failure classification.
+- Analyze machine sensor data using Python.
+- Train and compare Logistic Regression and Random Forest.
+- Automatically select the better-performing model based on F1-score.
+- Create an interactive web application using Streamlit.
+- Display model performance metrics and dataset information.
+- Demonstrate how predictive maintenance can support maintenance planning.
 
-## Dataset
+## 3. Technologies Used
 
-The project uses the **AI4I 2020 Predictive Maintenance Dataset** from the
-[UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/601/ai4i+2020+predictive+maintenance+dataset).
-The downloader fetches UCI dataset ID `601` and writes it to
-`data/ai4i2020.csv`.
+| Technology | Purpose |
+|---|---|
+| Python | Main programming language |
+| Pandas | Loading, cleaning, and processing data |
+| Scikit-learn | Training and evaluating ML models |
+| Logistic Regression | Classification algorithm |
+| Random Forest | Tree-based ensemble classification algorithm |
+| Streamlit | Interactive web application |
+| Matplotlib | Data visualization |
+| Joblib | Saving and loading the trained model |
+| JSON | Storing model evaluation metrics |
 
-The checked-in dataset contains **10,000 rows** and **12 columns**. The UCI
-source may include identifier columns in some versions; the training script
-excludes `UDI` and `Product ID` if they are present. The checked-in CSV does not
-contain those columns.
+## 4. Dataset
 
-| Column | Meaning | Used as a model input? |
-|---|---|---|
-| `Type` | Product quality/type category (`L`, `M`, or `H`) | Yes |
-| `Air temperature` | Air temperature in kelvin | Yes |
-| `Process temperature` | Process temperature in kelvin | Yes |
-| `Rotational speed` | Rotational speed in rpm | Yes |
-| `Torque` | Torque in Nm | Yes |
-| `Tool wear` | Tool wear in minutes | Yes |
-| `Machine failure` | Overall binary target label | Target |
-| `TWF` | Tool wear failure mode | No; failure-mode/target-related |
-| `HDF` | Heat dissipation failure mode | No; failure-mode/target-related |
-| `PWF` | Power failure mode | No; failure-mode/target-related |
-| `OSF` | Overstrain failure mode | No; failure-mode/target-related |
-| `RNF` | Random failure mode | No; failure-mode/target-related |
+This project uses the **AI4I 2020 Predictive Maintenance Dataset**, available from the UCI Machine Learning Repository.
 
-The dataset has **9,661 non-failure rows (96.61%)** and **339 failure rows
-(3.39%)**. This class imbalance is why accuracy alone is not enough to evaluate
-the classifiers.
+Dataset: https://archive.ics.uci.edu/dataset/601/ai4i+2020+predictive+maintenance+dataset
 
-## Training and model selection
+The dataset contains 10,000 synthetic machine records with operational measurements and machine failure labels.
 
-Run `train_model.py` to perform the following steps:
+### Important Features
 
-1. Read `data/ai4i2020.csv` and use `Machine failure` as the target.
-2. Exclude identifiers (`UDI`, `Product ID`) if present, and exclude
-   failure-mode columns (`TWF`, `HDF`, `PWF`, `OSF`, `RNF`) from the input
-   features. This avoids giving the model identifiers or closely target-related
-   failure-mode labels.
-3. Split the data into **80% training and 20% test**, using
-   `train_test_split(test_size=0.20, random_state=42, stratify=y)`.
-   - Training: **8,000 rows** (7,729 non-failures and 271 failures).
-   - Test: **2,000 rows** (1,932 non-failures and 68 failures).
-   - Stratification preserves approximately the same failure proportion in
-     both sets; seed `42` makes the split reproducible.
-4. Fit preprocessing as part of each model's scikit-learn pipeline:
-   - Numeric features: fill missing values with the median, then standardize
-     using `StandardScaler`.
-   - Categorical features: fill missing values with the most frequent value,
-     then one-hot encode with unknown categories ignored.
-5. Train and evaluate the following classifiers:
+| Feature | Description |
+|---|---|
+| Type | Machine product quality/type category |
+| Air temperature | Ambient air temperature |
+| Process temperature | Machine process temperature |
+| Rotational speed | Machine rotational speed |
+| Torque | Torque measurement |
+| Tool wear | Tool wear measurement |
+| Machine failure | Target label indicating failure or no failure |
 
-   | Model | Configuration | Why it is included |
-   |---|---|---|
-   | Logistic Regression | `max_iter=2000`, `class_weight="balanced"` | A comparatively simple, interpretable linear baseline. Balanced class weights account for the minority failure class. |
-   | Random Forest | 250 trees, `min_samples_leaf=2`, `class_weight="balanced"` | A tree ensemble can learn nonlinear relationships and feature interactions. Balanced class weights help address the rare failure class. |
+The original dataset also includes identifiers and failure-mode columns. These are excluded from the model's input features to avoid using identifiers or information that would reveal the target during prediction.
 
-6. Calculate accuracy, precision, recall, F1-score, ROC-AUC, confusion matrix,
-   and classification report for each model on the test set.
-7. Select the model with the highest **F1-score**, then save the complete
-   preprocessing-and-model pipeline to `models/model.joblib`. Save the selected
-   model name, feature list, split configuration, and comparison metrics to
-   `models/metrics.json`.
+The `Machine failure` column is used as the target during model training, not as an input feature.
 
-### Why use F1-score?
+**Important:** The dataset is synthetic, so the model demonstrates the predictive maintenance workflow rather than guaranteeing performance on real industrial machines.
 
-With only 3.39% failure examples, a classifier could achieve high accuracy by
-mostly predicting “no failure.” F1-score combines precision (how many predicted
-failures were actual failures) and recall (how many actual failures were found),
-making it more informative for comparing these imbalanced classifiers. The
-application also reports precision, recall, accuracy, and ROC-AUC so that
-trade-offs remain visible.
+## 5. How the Project Works
 
-## Saved test-set results
+The project follows these steps:
 
-These are the results currently recorded in `models/metrics.json`. Values are
-from the held-out 20% split; the app displays this comparison on its **Model
-Performance** page.
+1. **Download the dataset:** `download_data.py` retrieves the dataset and saves it as a CSV file.
+2. **Preprocess the data:** `train_model.py` selects the input features and target label and excludes unnecessary or leakage-prone columns.
+3. **Split the dataset:** The data is divided into 80% training data and 20% testing data, using stratification to preserve the target-class distribution.
+4. **Train the models:** Logistic Regression and Random Forest are trained on the training data.
+5. **Evaluate the models:** Both models are evaluated on the held-out test set.
+6. **Select the best model:** The model with the higher F1-score is selected.
+7. **Save the results:** The selected model is saved to `models/model.joblib`, and evaluation metrics are saved to `models/metrics.json`.
+8. **Run the application:** `app.py` loads the saved model and displays the interactive Streamlit interface.
+9. **Predict machine failure:** Users enter sensor readings, and the saved model predicts Failure or No Failure.
 
-| Model | Accuracy | Precision | Recall | F1-score | ROC-AUC |
-|---|---:|---:|---:|---:|---:|
-| Logistic Regression | 0.8245 | 0.1418 | 0.8235 | 0.2419 | 0.9070 |
-| Random Forest *(selected)* | 0.9745 | 0.5955 | 0.7794 | 0.6752 | 0.9682 |
+### Model Selection
 
-The Random Forest is selected because its F1-score is higher in this recorded
-run. Its precision/recall trade-off is important: some predicted failures are
-false alarms, and some actual failures are missed.
+The project compares two algorithms:
 
-**Evaluation caveat:** The current script uses the same test split both to
-compare/select the models and to report their metrics. That can make the
-reported results optimistic; the test set is no longer fully untouched after
-model selection. A stronger evaluation would use a separate validation set or
-cross-validation to select the model, then evaluate the final choice once on a
-reserved test set.
+**Logistic Regression**
+- A classification algorithm that learns relationships between input features and the target.
+- Provides a relatively simple baseline for comparison.
 
-## Run the project
+**Random Forest**
+- An ensemble algorithm that combines multiple decision trees.
+- Can learn more complex, non-linear patterns in the data.
 
-Commands below are shown for Windows PowerShell. Run them from the repository
-root.
+The models are compared using evaluation metrics, including F1-score. The model with the higher F1-score is selected automatically during training.
 
-### 1. Create and activate a virtual environment
+Only the selected model is saved in `models/model.joblib` and used for predictions. The application does not combine both models into a single prediction.
+
+## 6. Model Evaluation Metrics
+
+The project evaluates model performance using the following metrics:
+
+| Metric | Meaning |
+|---|---|
+| Accuracy | Percentage of correct predictions |
+| Precision | Among predicted failures, the proportion that are actual failures |
+| Recall | Among actual failures, the proportion correctly identified |
+| F1-score | Balance between precision and recall |
+| ROC-AUC | Measures how well the model distinguishes the two classes across classification thresholds |
+
+Machine failure datasets can have many more normal records than failure records. Therefore, accuracy alone may be misleading. Recall and F1-score are also important when evaluating failure detection.
+
+Actual performance values are generated by `train_model.py` and stored in `models/metrics.json`. Results should be taken from that file rather than assumed in advance.
+
+## 7. Application Features
+
+### Dashboard
+- Displays an overview of the dataset.
+- Shows machine failure distribution.
+- Presents sensor-related charts and summary information.
+
+### Predict Failure
+- Allows users to enter machine sensor readings.
+- Accepts machine type and operational measurements.
+- Predicts Failure or No Failure using the selected model.
+- Displays a model score and submitted sensor readings.
+
+The displayed score should not automatically be interpreted as a calibrated real-world probability of failure.
+
+### Model Performance
+- Displays evaluation metrics for the trained models.
+- Helps compare Logistic Regression and Random Forest.
+- Supports understanding why a model was selected.
+
+### Dataset Explorer
+- Displays dataset records.
+- Shows descriptive statistics.
+- Allows users to explore the data used by the project.
+
+## 8. Project Structure
+
+```text
+predictive-maintenance/
+│
+├── .venv/
+│   └── Python virtual environment
+│
+├── data/
+│   └── ai4i2020.csv
+│
+├── models/
+│   ├── model.joblib
+│   └── metrics.json
+│
+├── app.py
+├── download_data.py
+├── train_model.py
+├── requirements.txt
+└── README.md
+```
+
+### File Descriptions
+
+| File | Purpose |
+|---|---|
+| `app.py` | Streamlit web application and prediction interface |
+| `download_data.py` | Downloads and saves the dataset |
+| `train_model.py` | Preprocesses data, trains models, evaluates them, and saves the selected model |
+| `requirements.txt` | Lists the Python packages required by the project |
+| `data/ai4i2020.csv` | Downloaded dataset |
+| `models/model.joblib` | Saved selected model |
+| `models/metrics.json` | Saved evaluation metrics |
+| `.venv/` | Local Python virtual environment |
+
+The `.venv/` folder is local to the development environment and generally should not be uploaded to GitHub.
+
+## 9. Requirements
+
+- Python installed on the computer.
+- pip package manager.
+- Internet connection for downloading the dataset initially.
+- A terminal such as PowerShell or Command Prompt.
+- A web browser to access the Streamlit application.
+
+## 10. Installation and Setup
+
+### Step 1: Open the Project Folder
+
+Open PowerShell and run:
 
 ```powershell
-py -m venv .venv
+cd C:\Users\pranj\predictive-maintenance
+```
+
+### Step 2: Activate the Virtual Environment
+
+If the `.venv` folder already exists:
+
+```powershell
 .\.venv\Scripts\Activate.ps1
 ```
 
-If PowerShell blocks activation, use the environment's Python directly as shown
-below, or follow your local PowerShell execution-policy guidance.
+If PowerShell blocks script execution, you can use Command Prompt and activate it with:
 
-### 2. Install dependencies
+```cmd
+.venv\Scripts\activate.bat
+```
+
+### Step 3: Install Dependencies
 
 ```powershell
-python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-### 3. Get the dataset
+## 11. Running the Project
 
-The CSV is included in this repository. If it is missing, download it with:
+Run the following commands in the project folder, with the virtual environment activated.
+
+### Step 1: Download the Dataset
 
 ```powershell
 python download_data.py
 ```
 
-This script uses `ucimlrepo` to fetch dataset ID `601` and saves the resulting
-CSV to `data/ai4i2020.csv`; an internet connection is required for this step.
+This creates or updates:
 
-### 4. Train and save the model
+```text
+data/ai4i2020.csv
+```
+
+Run this step when the dataset needs to be downloaded or regenerated.
+
+### Step 2: Train and Evaluate the Models
 
 ```powershell
 python train_model.py
 ```
 
-Training prints the model metrics, confusion matrix, and classification report,
-then creates or replaces `models/model.joblib` and `models/metrics.json`.
+This step trains both algorithms, evaluates their performance, selects the model with the higher F1-score, and saves the model and metrics.
 
-### 5. Start the dashboard
+Expected output files:
+
+```text
+models/model.joblib
+models/metrics.json
+```
+
+Run training again whenever you want to retrain the models using the current dataset and training configuration.
+
+### Step 3: Start the Web Application
 
 ```powershell
 streamlit run app.py
 ```
 
-Open the local URL printed by Streamlit in your browser. The app requires the
-saved model and metrics files; train the model first if either is missing.
-
-## Using the application
-
-The sidebar provides four sections:
-
-- **Dashboard:** Dataset record counts, observed failure rate, failure
-  distribution, and a sensor chart.
-- **Predict Failure:** Enter machine type and sensor readings to see the
-  predicted class and model score. The submitted row can be downloaded as a
-  CSV.
-- **Model Performance:** Compare the saved test metrics and see which model was
-  selected by F1-score.
-- **Dataset Explorer:** Preview records, view descriptive statistics and
-  missing-value counts, and download the dataset.
-
-The prediction score is the model's estimated probability for the failure
-class. The UI divides scores below `0.30`, from `0.30` to below `0.60`, and
-`0.60` or higher into illustrative LOW, MEDIUM, and HIGH score bands. These
-bands are not calibrated or validated maintenance thresholds, and should not
-be treated as real-world risk levels.
-
-## Project structure
+Streamlit will provide a local URL, usually:
 
 ```text
-.
-├── app.py                 # Streamlit dashboard and interactive prediction
-├── download_data.py       # Downloads the AI4I 2020 dataset from UCI
-├── train_model.py         # Preprocessing, training, comparison, evaluation
-├── requirements.txt       # Python package dependencies
-├── data/
-│   └── ai4i2020.csv       # Dataset used for training and exploration
-└── models/
-    ├── model.joblib       # Saved selected scikit-learn pipeline
-    └── metrics.json       # Saved model comparison and split metadata
+http://localhost:8501
 ```
 
-## Limitations and next steps
+Open that URL in your browser if it does not open automatically.
 
-- The source dataset is synthetic and does not establish performance on a
-  particular factory, machine, sensor setup, or real operating conditions.
-- Failure is rare in the data, so false alarms and missed failures both matter;
-  review precision and recall in addition to accuracy.
-- Model selection currently reuses the test set. Add a validation strategy and
-  keep an untouched final test set for less biased evaluation.
-- The LOW/MEDIUM/HIGH bands are illustrative score ranges, not validated
-  decision thresholds. Probability calibration and domain-specific threshold
-  selection would be needed before making risk claims.
-- The app accepts one set of sensor values at a time; it does not consume live
-  telemetry, model temporal trends, or predict time-to-failure.
+You can now explore the dashboard, enter sensor readings, view predictions, compare model metrics, and inspect the dataset.
 
-## Dependencies
+## 12. Example Prediction Workflow
 
-See [`requirements.txt`](./requirements.txt) for the package list. The project
-uses pandas and NumPy for data handling, scikit-learn for preprocessing and
-classification, joblib for model persistence, and Streamlit and Matplotlib for
-the dashboard. `ucimlrepo` is used by the dataset downloader.
+1. Open the Streamlit application.
+2. Navigate to **Predict Failure**.
+3. Select a machine type.
+4. Enter the air temperature.
+5. Enter the process temperature.
+6. Enter the rotational speed.
+7. Enter the torque.
+8. Enter the tool wear value.
+9. Submit the readings.
+10. Review the predicted class and displayed model score.
+
+The prediction depends on the trained model and the values supplied by the user.
+
+## 13. Current Project Scope
+
+### Implemented
+
+- Dataset download and CSV storage.
+- Data preprocessing and feature selection.
+- Training of Logistic Regression and Random Forest.
+- Evaluation using classification metrics.
+- Automatic model selection based on F1-score.
+- Saving and loading the selected model.
+- Streamlit dashboard.
+- Interactive machine failure prediction.
+- Model performance page.
+- Dataset exploration.
+
+### Current Limitations
+
+- Uses a synthetic dataset rather than live industrial sensor readings.
+- Does not connect to IoT devices or physical machinery.
+- Does not provide remaining useful life (RUL) predictions.
+- Does not automatically send maintenance alerts.
+- Predictions depend on the dataset and training process and are not guaranteed to generalize to real machines.
+
+## 14. Future Improvements
+
+Possible future enhancements include:
+
+- Connecting real-time sensor data through IoT devices.
+- Adding maintenance alerts when risk thresholds are exceeded.
+- Testing on real industrial datasets.
+- Improving recall for machine failure detection.
+- Adding model explainability to show which features influence predictions.
+- Deploying the application online.
+
+These are potential improvements and are not currently implemented features.
+
+## 15. Learning Outcomes
+
+Through this project, the following concepts are demonstrated:
+
+- Data preprocessing with Pandas.
+- Supervised machine learning classification.
+- Training and testing data separation.
+- Model evaluation and comparison.
+- Automatic selection of a model using a chosen metric.
+- Saving and loading models with Joblib.
+- Building an interactive ML application using Streamlit.
+
+## 16. Conclusion
+
+Machine Failure Prediction Using Machine Learning demonstrates how historical machine sensor data can be used to build a classification model for predictive maintenance.
+
+By training and comparing Logistic Regression and Random Forest, the project automatically selects a model based on F1-score and uses it in an interactive Streamlit application.
+
+The project provides a practical introduction to machine learning workflows and demonstrates the potential of predictive analytics to support industrial maintenance decisions.
+
+## 17. Dataset Reference
+
+AI4I 2020 Predictive Maintenance Dataset, UCI Machine Learning Repository:
+
+https://archive.ics.uci.edu/dataset/601/ai4i+2020+predictive+maintenance+dataset
+
+---
+
+**Project:** Machine Failure Prediction Using Machine Learning  
+**Language:** Python  
+**Machine Learning:** Scikit-learn  
+**Interface:** Streamlit  
+**Purpose:** Educational predictive maintenance prototype
